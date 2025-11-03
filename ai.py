@@ -4,7 +4,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# === CONFIGURAZIONE ===
+# configurazione
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -12,7 +12,7 @@ GIORNI_MASSIMI = int(os.getenv("GIORNI_MASSIMI", 7))
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# === GPT: RIASSUNTO ANNUNCIO ===
+
 def riassumi_annuncio(testo, url, categoria):
     prompt = f"""
         Sei un assistente che analizza annunci di lavoro nel settore della danza.
