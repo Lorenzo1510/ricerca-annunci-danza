@@ -30,6 +30,8 @@ def riassumi_annuncio(testo, url, categoria):
         - Luogo o ente
         - Scadenza o modalità di candidatura (se presenti)
 
+        IMPORTANTE ZONA MILANO: Se il luogo del lavoro o dell'audizione si trova a Milano (e provincia) o in generale in Lombardia, INIZIA la tua sintesi ASSOLUTAMENTE con il tag esatto: [MILANO]. Se la zona non è Milano/Lombardia, NON includere questo tag.
+
         Annuncio:
         {testo}
 
@@ -38,7 +40,7 @@ def riassumi_annuncio(testo, url, categoria):
         Se l'annuncio è valido, rispondi in massimo 4 righe, tono professionale, senza inventare dati mancanti.
     """
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         risposta = model.generate_content(
             prompt.strip(),
             generation_config=genai.types.GenerationConfig(
@@ -82,7 +84,8 @@ def crea_report(annunci):
     annunci_validi_totali = 0
 
     for categoria, lista in annunci_per_categoria.items():
-        sez_html = ""
+        milano_html = ""
+        altri_html = ""
         for a in lista:
             breve = riassumi_annuncio(a["titolo"], a["url"], categoria)
             if "SCARTARE" in breve.upper() and len(breve.strip()) < 20:
@@ -92,10 +95,13 @@ def crea_report(annunci):
             annunci_validi_totali += 1
             data_str = datetime.fromisoformat(a["data"]).strftime("%d/%m/%Y")
             
-            # format the summary nicely if it has newlines
-            breve_html = breve.replace('\n', '<br>')
+            is_milano = "[MILANO]" in breve.upper()
+            breve_pulito = breve.replace("[MILANO]", "").replace("[Milano]", "").replace("[milano]", "").strip()
             
-            sez_html += f"""
+            # format the summary nicely if it has newlines
+            breve_html = breve_pulito.replace('\n', '<br>')
+            
+            annuncio_html = f"""
             <div class="annuncio">
                 <p>{breve_html}</p>
                 <div class="annuncio-meta">
@@ -105,9 +111,20 @@ def crea_report(annunci):
             </div>
             """
             
-        if sez_html:
+            if is_milano:
+                milano_html += annuncio_html
+            else:
+                altri_html += annuncio_html
+            
+        if milano_html or altri_html:
             html += f"<h3>🩰 Sezione: {categoria.upper()}</h3>"
-            html += sez_html
+            if milano_html:
+                html += "<h4>📌 In evidenza (Zona Milano / Dintorni)</h4>"
+                html += milano_html
+            if altri_html:
+                if milano_html:
+                    html += "<h4>🌍 Altre Zone</h4>"
+                html += altri_html
 
     if annunci_validi_totali == 0:
         return "<h3>Tutte le audizioni trovate risultano troppo vecchie o scadute. Nessun nuovo annuncio valido.</h3>"
