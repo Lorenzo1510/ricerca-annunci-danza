@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -39,19 +40,33 @@ def riassumi_annuncio(testo, url, categoria):
 
         Se l'annuncio è valido, rispondi in massimo 4 righe, tono professionale, senza inventare dati mancanti.
     """
-    try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        risposta = model.generate_content(
-            prompt.strip(),
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=150,
-                temperature=0.6,
+    max_retries = 3
+    base_delay = 14 # tempo di attesa base per non sforare le 5 RPM del tier free
+
+    for attempt in range(max_retries):
+        try:
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            risposta = model.generate_content(
+                prompt.strip(),
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=150,
+                    temperature=0.6,
+                )
             )
-        )
-        return risposta.text.strip()
-    except Exception as e:
-        print("⚠️ Errore Gemini:", e)
-        return testo
+            time.sleep(2) # Pausa di 2 sec per ammorbidire un po' i rate limit sul lungo termine
+            return risposta.text.strip()
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "429" in error_msg or "quota" in error_msg:
+                wait_time = base_delay * (2 ** attempt)
+                print(f"⏳ Quota Gemini (429) superata. Attendo {wait_time} secondi (tentativo {attempt + 1}/{max_retries})...")
+                time.sleep(wait_time)
+            else:
+                print("⚠️ Errore Gemini:", e)
+                return testo
+
+    print("❌ Impossibile analizzare questo annuncio per ripetuti errori di quota API.")
+    return testo
 
 # === CREA REPORT ===
 def crea_report(annunci):
