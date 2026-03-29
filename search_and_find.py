@@ -47,18 +47,22 @@ def cerca_instagram_via_serpapi(query_list, categoria, max_results=10):
             print(f"🔍 Cerco su Instagram (via Google): {query}")
             params = {
                 "engine": "google",
-                "q": f"site:instagram.com {query}",
+                "q": f"(site:instagram.com/p/ OR site:instagram.com/reel/) {query}",
                 "num": max_results,
+                "tbs": "qdr:w",
                 "api_key": SERPAPI_KEY
             }
             r = requests.get("https://serpapi.com/search.json", params=params)
             data = r.json()
             for item in data.get("organic_results", []):
                 titolo = item.get("title", "")
+                snippet = item.get("snippet", "")
                 link = item.get("link", "")
-                if any(k in titolo.lower() for k in ["danza", "audizione", "ballet", "insegnante"]):
+                testo_completo = f"{titolo} - {snippet}"
+                
+                if any(k in testo_completo.lower() for k in ["danza", "audizione", "ballet", "insegnante", "casting", "ballerin", "cercasi"]):
                     risultati.append({
-                        "titolo": titolo[:120],
+                        "titolo": testo_completo[:500],
                         "url": link,
                         "fonte": f"instagram (via serpapi: {query})",
                         "categoria": categoria,

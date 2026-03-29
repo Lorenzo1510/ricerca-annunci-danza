@@ -20,7 +20,7 @@ def invia_email(testo_report):
     msg["From"] = EMAIL_FROM
     msg["To"] = EMAIL_TO
 
-    msg.attach(MIMEText(testo_report, "plain"))
+    msg.attach(MIMEText(testo_report, "html"))
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(EMAIL_FROM, EMAIL_PASS)
         server.send_message(msg)

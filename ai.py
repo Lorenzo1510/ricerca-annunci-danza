@@ -2,23 +2,29 @@ import os
 from datetime import datetime
 
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 
 # configurazione
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GIORNI_MASSIMI = int(os.getenv("GIORNI_MASSIMI", 7))
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+genai.configure(api_key=GOOGLE_API_KEY)
 
 
 def riassumi_annuncio(testo, url, categoria):
+    oggi = datetime.now().strftime("%d/%m/%Y")
     prompt = f"""
         Sei un assistente che analizza annunci di lavoro nel settore della danza.
         Categoria: {categoria}
+        Data di oggi: {oggi}
 
-        Riassumi in modo sintetico:
+        ANALISI CRITICA:
+        Verifica attentamente se l'annuncio o l'audizione indicata nel testo è GIA' SCADUTA, PASSATA o CHIUSA. 
+        Tieni conto della data di oggi ({oggi}). Se i termini per candidarsi sono superati, o l'audizione si è già tenuta e non ha senso candidarsi, RISPONDI ESATTAMENTE e SOLTANTO con la parola: SCARTARE
+
+        Se invece l'annuncio è ancora valido o non c'è una data di scadenza chiara, riassumi in modo sintetico:
         - Ruolo o posizione offerta
         - Requisiti o competenze
         - Luogo o ente
@@ -29,38 +35,82 @@ def riassumi_annuncio(testo, url, categoria):
 
         Link: {url}
 
-        Rispondi in massimo 4 righe, tono professionale, senza inventare dati mancanti.
+        Se l'annuncio è valido, rispondi in massimo 4 righe, tono professionale, senza inventare dati mancanti.
     """
     try:
-        risposta = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt.strip()}],
-            max_tokens=150,
-            temperature=0.6,
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        risposta = model.generate_content(
+            prompt.strip(),
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=150,
+                temperature=0.6,
+            )
         )
-        return risposta.choices[0].message.content.strip()
+        return risposta.text.strip()
     except Exception as e:
-        print("⚠️ Errore GPT:", e)
+        print("⚠️ Errore Gemini:", e)
         return testo
 
 # === CREA REPORT ===
 def crea_report(annunci):
     if not annunci:
-        return "Nessuna nuova audizione trovata negli ultimi giorni."
+        return "<h3>Nessuna nuova audizione trovata negli ultimi giorni.</h3>"
 
-    report = f"🎭 **Report Audizioni (ultimi {GIORNI_MASSIMI} giorni)**\n\n"
+    html = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto; }}
+            h2 {{ color: #4A90E2; border-bottom: 2px solid #4A90E2; padding-bottom: 5px; }}
+            h3 {{ color: #D0021B; margin-top: 30px; }}
+            .annuncio {{ background: #f9f9f9; padding: 15px; margin-bottom: 20px; border-radius: 8px; border-left: 5px solid #F5A623; }}
+            .annuncio-meta {{ font-size: 0.9em; color: #777; margin-top: 10px; }}
+            a {{ color: #4A90E2; text-decoration: none; font-weight: bold; }}
+            a:hover {{ text-decoration: underline; }}
+        </style>
+    </head>
+    <body>
+        <h2>🎭 Report Audizioni & Casting (ultimi {GIORNI_MASSIMI} giorni)</h2>
+    """
+
     annunci_per_categoria = {"casting": [], "insegnante": []}
 
     for a in annunci:
         categoria = a.get("categoria", "casting")
         annunci_per_categoria.setdefault(categoria, []).append(a)
 
-    for categoria, lista in annunci_per_categoria.items():
-        if lista:
-            report += f"### 🩰 Sezione: {categoria.upper()}\n\n"
-            for a in lista:
-                breve = riassumi_annuncio(a["titolo"], a["url"], categoria)
-                data_str = datetime.fromisoformat(a["data"]).strftime("%d/%m/%Y")
-                report += f"- {breve}\n📅 {data_str} | 👉 {a['url']} ({a.get('fonte')})\n\n"
+    annunci_validi_totali = 0
 
-    return report
+    for categoria, lista in annunci_per_categoria.items():
+        sez_html = ""
+        for a in lista:
+            breve = riassumi_annuncio(a["titolo"], a["url"], categoria)
+            if "SCARTARE" in breve.upper() and len(breve.strip()) < 20:
+                print(f"🗑️ Scartato: {a['titolo']}")
+                continue
+                
+            annunci_validi_totali += 1
+            data_str = datetime.fromisoformat(a["data"]).strftime("%d/%m/%Y")
+            
+            # format the summary nicely if it has newlines
+            breve_html = breve.replace('\n', '<br>')
+            
+            sez_html += f"""
+            <div class="annuncio">
+                <p>{breve_html}</p>
+                <div class="annuncio-meta">
+                    📅 Trovato il: {data_str} | 🔍 Fonte: {a.get('fonte')}<br>
+                    👉 <a href="{a['url']}">Vai all'annuncio originale</a>
+                </div>
+            </div>
+            """
+            
+        if sez_html:
+            html += f"<h3>🩰 Sezione: {categoria.upper()}</h3>"
+            html += sez_html
+
+    if annunci_validi_totali == 0:
+        return "<h3>Tutte le audizioni trovate risultano troppo vecchie o scadute. Nessun nuovo annuncio valido.</h3>"
+
+    html += "</body></html>"
+    return html

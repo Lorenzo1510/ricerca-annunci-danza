@@ -47,3 +47,20 @@ KEYWORDS_INSEGNANTE = [
     "dance school hiring", "looking for dance teacher", "dance academy hiring",
     "teach dance", "dance teaching position"
 ]
+
+# === INSTAGRAM ===
+
+INSTAGRAM_QUERIES_CASTING = [
+    '"audizione danza"',
+    '"casting ballerini"',
+    '"casting danza"',
+    '"audizione ballerini"',
+    '"cercasi ballerini"'
+]
+
+INSTAGRAM_QUERIES_INSEGNANTE = [
+    '"cercasi insegnante di danza"',
+    '"insegnante di danza wanted"',
+    '"audizione insegnante danza"',
+    '"offresi lavoro insegnante danza"'
+]

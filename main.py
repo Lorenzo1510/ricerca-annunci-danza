@@ -1,4 +1,4 @@
-from config import SEARCH_URLS_CASTING, SEARCH_URLS_INSEGNANTE, KEYWORDS_CASTING, KEYWORDS_INSEGNANTE
+from config import SEARCH_URLS_CASTING, SEARCH_URLS_INSEGNANTE, KEYWORDS_INCLUDE, KEYWORDS_INSEGNANTE, INSTAGRAM_QUERIES_CASTING, INSTAGRAM_QUERIES_INSEGNANTE
 from search_and_find import trova_annunci
 from ai import crea_report
 from mail_sender import invia_email
@@ -7,15 +7,15 @@ def call():
     annunci_casting = trova_annunci(
         categoria="casting",
         urls=SEARCH_URLS_CASTING,
-        keywords=KEYWORDS_CASTING,
-        hashtags=["audizione", "balletaudition", "castingdanzatori", "danza"]
+        keywords=KEYWORDS_INCLUDE,
+        hashtags=INSTAGRAM_QUERIES_CASTING
     )
 
     annunci_insegnante = trova_annunci(
         categoria="insegnante",
         urls=SEARCH_URLS_INSEGNANTE,
         keywords=KEYWORDS_INSEGNANTE,
-        hashtags=["insegnantedidanza", "danceteacher", "lezionididanza"]
+        hashtags=INSTAGRAM_QUERIES_INSEGNANTE
     )
 
     tutti_annunci = annunci_casting + annunci_insegnante
